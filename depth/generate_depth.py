@@ -6,7 +6,28 @@ from tqdm import tqdm
 
 # Add DepthAnythingV2 to path
 import sys
-sys.path.append(os.path.abspath("../Depth-Anything-V2"))
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+
+# Support both layouts:
+# 1) Vision-Based-Pothole-Detection/Depth-Anything-V2
+# 2) ../Depth-Anything-V2 (sibling of project root)
+DEPTH_ANYTHING_CANDIDATES = [
+    os.path.join(PROJECT_ROOT, "Depth-Anything-V2"),
+    os.path.abspath(os.path.join(PROJECT_ROOT, "..", "Depth-Anything-V2")),
+]
+
+DEPTH_ANYTHING_ROOT = next(
+    (p for p in DEPTH_ANYTHING_CANDIDATES if os.path.isdir(p)), None
+)
+if DEPTH_ANYTHING_ROOT is None:
+    raise FileNotFoundError(
+        "Could not find Depth-Anything-V2. Expected one of: "
+        + ", ".join(DEPTH_ANYTHING_CANDIDATES)
+    )
+
+sys.path.append(DEPTH_ANYTHING_ROOT)
 
 from depth_anything_v2.dpt import DepthAnythingV2
 
@@ -15,30 +36,33 @@ from depth_anything_v2.dpt import DepthAnythingV2
 # -------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-MODEL_PATH = "../Depth-Anything-V2/checkpoints/depth_anything_v2_vits.pth"
+MODEL_PATH = os.path.join(
+    DEPTH_ANYTHING_ROOT, "checkpoints", "depth_anything_v2_vits.pth"
+)
 
 DATA_PATHS = {
-    "train": "data/train/images",
-    "valid": "data/valid/images",
-    "test": "data/test/images"
+    "train": os.path.join(PROJECT_ROOT, "data", "train", "images"),
+    "valid": os.path.join(PROJECT_ROOT, "data", "valid", "images"),
+    "test": os.path.join(PROJECT_ROOT, "data", "test", "images"),
 }
 
-OUTPUT_PATH = "depth_maps"
+OUTPUT_PATH = os.path.join(PROJECT_ROOT, "depth_maps")
 
 # -------------------------
 # LOAD MODEL
 # -------------------------
-model = DepthAnythingV2(encoder='vits', features=64, out_channels=[48, 96, 192, 384])
+model = DepthAnythingV2(encoder="vits", features=64, out_channels=[48, 96, 192, 384])
 model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
 model.to(DEVICE).eval()
+
 
 # -------------------------
 # FUNCTION: process one image
 # -------------------------
 def get_depth(image):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     depth = model.infer_image(image)
     return depth
+
 
 # -------------------------
 # MAIN LOOP

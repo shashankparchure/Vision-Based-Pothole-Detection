@@ -208,3 +208,6 @@ __marimo__/
 
 # Generated depth maps
 depth_maps/
+Depth-Anything-V2/
+data1/
+output/
